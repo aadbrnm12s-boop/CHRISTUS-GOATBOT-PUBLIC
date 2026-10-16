@@ -1,3 +1,4 @@
+
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
@@ -8,11 +9,11 @@ const TEMPLATE_URL = "https://imglink.cc/cdn/fxVB-_ybCZ.jpg";
 module.exports = {
   config: {
     name: "sik",
-    version: "1.0.0",
+    version: "1.1.0",
     author: "fadi",
     countDown: 5,
     role: 0,
-    longDescription: "تركيب صور البروفايل على شخصيات كلارنس",
+    longDescription: "تركيب بروفايلات على صورة كلارنس",
     category: "love",
     guide: "{pn} بالرد على رسالة الشخص أو بالمنشن"
   },
@@ -33,7 +34,7 @@ module.exports = {
 
       const senderID = event.senderID;
 
-      if (senderID === targetID) {
+      if (String(senderID) === String(targetID)) {
         return message.reply("اختار شخصاً آخر.");
       }
 
@@ -45,8 +46,11 @@ module.exports = {
             if (err) return reject(err);
 
             const user = info && info[uid];
+
             if (!user) {
-              return reject(new Error("تعذر جلب معلومات الحساب"));
+              return reject(
+                new Error("تعذر جلب معلومات الحساب: " + uid)
+              );
             }
 
             resolve(user);
@@ -71,7 +75,9 @@ module.exports = {
           responseType: "arraybuffer",
           timeout: 30000,
           maxRedirects: 5,
-          headers: { "User-Agent": "Mozilla/5.0" }
+          headers: {
+            "User-Agent": "Mozilla/5.0"
+          }
         });
 
         return loadImage(Buffer.from(response.data));
@@ -81,7 +87,11 @@ module.exports = {
         await Promise.all([
           axios.get(TEMPLATE_URL, {
             responseType: "arraybuffer",
-            timeout: 30000
+            timeout: 30000,
+            maxRedirects: 5,
+            headers: {
+              "User-Agent": "Mozilla/5.0"
+            }
           }),
           getAvatar(senderID),
           getAvatar(targetID)
@@ -99,22 +109,22 @@ module.exports = {
       const ctx = canvas.getContext("2d");
       ctx.drawImage(template, 0, 0);
 
-      function drawAvatar(img, centerX, centerY, size) {
+      function drawAvatar(img, centerX, centerY, size, color) {
         ctx.save();
 
-        // إطار رقيق
+        // إطار ملون
         ctx.beginPath();
         ctx.arc(
           centerX,
           centerY,
-          size / 2 + 2,
+          size / 2 + 3,
           0,
           Math.PI * 2
         );
-        ctx.fillStyle = "#777777";
+        ctx.fillStyle = color;
         ctx.fill();
 
-        // قص صورة البروفايل داخل دائرة
+        // قص البروفايل داخل دائرة
         ctx.beginPath();
         ctx.arc(
           centerX,
@@ -144,24 +154,26 @@ module.exports = {
         ctx.restore();
       }
 
-      // إحداثيات محسوبة على أبعاد القالب 1280 × 1210
+      // الإحداثيات النسبية للقالب
       const sx = template.width / 1280;
       const sy = template.height / 1210;
 
-      // بروفايل منفذ الأمر فوق رأس كلارنس (يسار الصورة)
+      // منفذ الأمر: بروفايله فوق رأس كلارنس
       drawAvatar(
         myAvatar,
         380 * sx,
-        820 * sy,
-        115 * sx
+        790 * sy,
+        155 * sx,
+        "#278BFF"
       );
 
-      // بروفايل الشخص المردود عليه فوق رأس سونو (يمين الصورة)
+      // الشخص المردود عليه: بروفايله فوق رأس الشخصية الوردية
       drawAvatar(
         targetAvatar,
         770 * sx,
         330 * sy,
-        135 * sx
+        165 * sx,
+        "#F04DFF"
       );
 
       outputPath = path.join(
@@ -183,7 +195,7 @@ module.exports = {
       console.error("SIK ERROR:", err.stack || err);
 
       await message.reply(
-        "تعذر إنشاء الصورة. تأكد من إمكانية جلب صور البروفايل."
+        "تعذر إنشاء الصورة. تأكد من رابط القالب وإمكانية جلب صور البروفايل."
       );
     } finally {
       if (outputPath) {
